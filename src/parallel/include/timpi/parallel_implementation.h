@@ -34,6 +34,7 @@
 #include "timpi/post_wait_dereference_tag.h"
 #include "timpi/post_wait_free_buffer.h"
 #include "timpi/post_wait_unpack_buffer.h"
+#include "timpi/post_wait_unpack_nested_buffer.h"
 #include "timpi/post_wait_work.h"
 #include "timpi/request.h"
 #include "timpi/status.h"
@@ -1090,8 +1091,6 @@ inline Status Communicator::receive (const unsigned int src_processor_id,
 
 
 
-// FIXME - non-blocking receive of vector-of-vectors is currently unimplemented
-/*
 template <typename T, typename A1, typename A2>
 inline void Communicator::receive (const unsigned int src_processor_id,
                                    std::vector<std::vector<T,A1>,A2> & buf,
@@ -1099,8 +1098,26 @@ inline void Communicator::receive (const unsigned int src_processor_id,
                                    Request & req,
                                    const MessageTag & tag) const
 {
+  // temporary buffer - this will be sized in bytes
+  // and manipulated with MPI_Unpack
+  std::vector<char> * recvbuf = new std::vector<char>();
+
+  // Get ready to receive the temporary buffer
+  this->receive (src_processor_id, *recvbuf, MPI_PACKED, req, tag);
+
+  // When we wait on the receive, we'll unpack the temporary buffer
+  req.add_post_wait_work
+    (new PostWaitUnpackNestedBuffer<std::vector<std::vector<T,A1>,A2>>
+       (*recvbuf, buf, type, *this));
+
+  // And then we'll free the temporary buffer
+  req.add_post_wait_work
+    (new PostWaitDeleteBuffer<std::vector<char>>(recvbuf));
+
+  // The MessageTag should stay registered for the Request lifetime
+  req.add_post_wait_work
+    (new PostWaitDereferenceTag(tag));
 }
-*/
 
 
 template <typename Context, typename OutputIter, typename T>
@@ -3240,6 +3257,52 @@ inline bool Communicator::possibly_receive (unsigned int & src_processor_id,
 
   return int_flag;
 }
+
+
+template <typename T, typename A1, typename A2>
+inline bool Communicator::possibly_receive (unsigned int & src_processor_id,
+                                            std::vector<std::vector<T,A1>,A2> & buf,
+                                            Request & req,
+                                            const MessageTag & tag) const
+{
+  T * dataptr = buf.empty() ? nullptr : (buf[0].empty() ? nullptr : buf[0].data());
+
+  return this->possibly_receive(src_processor_id, buf, StandardType<T>(dataptr), req, tag);
+}
+
+
+
+template <typename T, typename A1, typename A2>
+inline bool Communicator::possibly_receive (unsigned int & src_processor_id,
+                                            std::vector<std::vector<T,A1>,A2> & buf,
+                                            const DataType & type,
+                                            Request & req,
+                                            const MessageTag & tag) const
+{
+  TIMPI_LOG_SCOPE("possibly_receive()", "Parallel");
+
+  Status stat(type);
+
+  int int_flag = 0;
+
+  timpi_assert(src_processor_id < this->size() ||
+                  src_processor_id == any_source);
+
+  timpi_call_mpi(MPI_Iprobe(src_processor_id,
+                            tag.value(),
+                            this->get(),
+                            &int_flag,
+                            stat.get()));
+
+  if (int_flag)
+  {
+    src_processor_id = stat.source();
+    this->receive(src_processor_id, buf, type, req, tag);
+  }
+
+  return int_flag;
+}
+
 
 
 template <typename Context, typename OutputIter, typename T>
