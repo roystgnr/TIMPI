@@ -560,12 +560,12 @@ inline void Communicator::send (const unsigned int dest_processor_id,
                                 Request & req,
                                 const MessageTag & tag) const
 {
-  // temporary buffer - this will be sized in bytes
-  // and manipulated with MPI_Pack
-  std::vector<char> * sendbuf = new std::vector<char>();
-
   // figure out how many bytes we need to pack all the data
   const int sendsize = this->packed_size_of(send_vecs, type);
+
+  // temporary buffer - this will be sized in bytes
+  // and manipulated with MPI_Pack
+  std::vector<char> * sendbuf = new std::vector<char>(sendsize);
 
   // Pack the send buffer
   int pos=0;
