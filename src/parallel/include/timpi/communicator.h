@@ -240,7 +240,7 @@ private:
   // vector<vector<T>> into vector<char> via MPI_Pack*
   template <typename T, typename A1, typename A2>
   int packed_size_of(const std::vector<std::vector<T,A1>,A2> & buf,
-                     const DataType & type);
+                     const DataType & type) const;
 
   // Communication operations:
 public:

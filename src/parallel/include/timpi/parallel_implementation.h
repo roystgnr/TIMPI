@@ -210,7 +210,7 @@ dataplusint_type_acquire()
 
 template <typename T, typename A1, typename A2>
 int Communicator::packed_size_of(const std::vector<std::vector<T,A1>,A2> & buf,
-                                 const DataType & type)
+                                 const DataType & type) const
 {
   // figure out how many bytes we need to pack all the data
   int packedsize=0;
