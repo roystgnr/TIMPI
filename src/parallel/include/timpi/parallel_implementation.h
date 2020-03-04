@@ -571,14 +571,15 @@ inline void Communicator::send (const unsigned int dest_processor_id,
   int pos=0;
 
   // ... the size of the outer buffer
-  const int mpi_n_vecs = cast_int<int>(send_vecs.size());
+  const std::size_t n_vecs = send_vecs.size();
+  const int mpi_n_vecs = cast_int<int>(n_vecs);
 
   timpi_call_mpi
     (MPI_Pack (&mpi_n_vecs, 1,
                StandardType<unsigned int>(),
                sendbuf->data(), sendsize, &pos, this->get()));
 
-  for (std::size_t i = 0; i != mpi_n_vecs; ++i)
+  for (std::size_t i = 0; i != n_vecs; ++i)
     {
       // ... the size of the ith inner buffer
       const int subvec_size = cast_int<int>(send_vecs[i].size());
