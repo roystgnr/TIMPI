@@ -1108,9 +1108,13 @@ inline void Communicator::receive (const unsigned int src_processor_id,
                                    Request & req,
                                    const MessageTag & tag) const
 {
+  // figure out how many bytes we need to receive all the data into
+  // our properly pre-sized buf
+  const int sendsize = this->packed_size_of(buf, type);
+
   // temporary buffer - this will be sized in bytes
   // and manipulated with MPI_Unpack
-  std::vector<char> * recvbuf = new std::vector<char>();
+  std::vector<char> * recvbuf = new std::vector<char>(sendsize);
 
   // Get ready to receive the temporary buffer
   this->receive (src_processor_id, *recvbuf, MPI_PACKED, req, tag);
@@ -3307,7 +3311,23 @@ inline bool Communicator::possibly_receive (unsigned int & src_processor_id,
   if (int_flag)
   {
     src_processor_id = stat.source();
-    this->receive(src_processor_id, buf, type, req, tag);
+
+    std::vector<char> * recvbuf = new std::vector<char>(stat.size());
+
+    this->receive(src_processor_id, recvbuf, MPI_PACKED, req, tag);
+
+    // When we wait on the receive, we'll unpack the temporary buffer
+    req.add_post_wait_work
+      (new PostWaitUnpackNestedBuffer<std::vector<std::vector<T,A1>,A2>>
+         (*recvbuf, buf, type, *this));
+
+    // And then we'll free the temporary buffer
+    req.add_post_wait_work
+      (new PostWaitDeleteBuffer<std::vector<char>>(recvbuf));
+
+    // The MessageTag should stay registered for the Request lifetime
+    req.add_post_wait_work
+      (new PostWaitDereferenceTag(tag));
   }
 
   return int_flag;
