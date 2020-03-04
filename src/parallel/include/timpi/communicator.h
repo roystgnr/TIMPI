@@ -236,6 +236,12 @@ private:
   // Keep track of duplicate/split operations so we know when to free
   bool _I_duped_it;
 
+  // Utility function for determining size for buffering of
+  // vector<vector<T>> into vector<char> via MPI_Pack*
+  template <typename T, typename A1, typename A2>
+  int packed_size_of(const std::vector<std::vector<T,A1>,A2> & buf,
+                     const DataType & type);
+
   // Communication operations:
 public:
 
