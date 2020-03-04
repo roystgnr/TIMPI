@@ -3315,7 +3315,7 @@ inline bool Communicator::possibly_receive (unsigned int & src_processor_id,
 
     std::vector<char> * recvbuf = new std::vector<char>(stat.size());
 
-    this->receive(src_processor_id, recvbuf, MPI_PACKED, req, tag);
+    this->receive(src_processor_id, *recvbuf, MPI_PACKED, req, tag);
 
     // When we wait on the receive, we'll unpack the temporary buffer
     req.add_post_wait_work
