@@ -3313,7 +3313,7 @@ inline bool Communicator::possibly_receive (unsigned int & src_processor_id,
   {
     src_processor_id = stat.source();
 
-    std::vector<char> * recvbuf = new std::vector<char>(stat.size());
+    std::vector<char> * recvbuf = new std::vector<char>(stat.size(MPI_CHAR));
 
     this->receive(src_processor_id, *recvbuf, MPI_PACKED, req, tag);
 
