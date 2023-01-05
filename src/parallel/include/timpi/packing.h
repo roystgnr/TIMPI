@@ -156,6 +156,19 @@ get_packed_len (typename std::vector<buffer_type>::const_iterator in)
   // an unsigned value
   if (n_bits < sizeof(unsigned int) * CHAR_BIT)
     {
+// Nvidia compilers emit warnings they should omit from blocks which
+// are if (false) (constexpr!), so we tell them what to ignore here.
+#ifdef __NVCOMPILER
+#  pragma nv_diagnostic push
+#  ifdef __NVCC_DIAG_PRAGMA_SUPPORT__
+#    pragma nv_diag_suppress 186 // pointless comparison of unsigned integer with zero
+#    pragma nv_diag_suppress 63 // shift count is too large
+#  else
+#    pragma diag_suppress 186
+#    pragma diag_suppress 63
+#  endif
+#endif
+
       const int n_size_entries = get_packed_len_entries<buffer_type>();
       unsigned int packed_len = 0;
 
@@ -171,6 +184,10 @@ get_packed_len (typename std::vector<buffer_type>::const_iterator in)
           packed_len += next_entry;
         }
       return packed_len;
+
+#ifdef __NVCOMPILER
+#  pragma nv_diagnostic pop
+#endif
     }
 
   // With 32 bits or more this is trivial
