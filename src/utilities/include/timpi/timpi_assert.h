@@ -196,9 +196,19 @@ struct casting_compare {
 // parallel on every processor at once
 
 #ifndef NDEBUG
-#define timpi_parallel_only(comm_obj) do {                            \
-    timpi_assert((comm_obj).verify(std::string(__FILE__)));           \
-    timpi_assert((comm_obj).verify(std::to_string(__LINE__))); } while (0)
+#define timpi_stringize_helper(x)  #x
+#define timpi_stringize(x)         timpi_stringize_helper(x)
+#define timpi_parallel_only(comm_obj) do {                              \
+    timpi_assert_msg((comm_obj).verify(std::string(__FILE__).length()), \
+                     "TIMPI method out of sync at " __FILE__ " line "   \
+                     timpi_stringize(__LINE__));                        \
+    timpi_assert_msg((comm_obj).verify(std::string(__FILE__)),          \
+                     "TIMPI method out of sync at " __FILE__ " line "   \
+                     timpi_stringize(__LINE__));                        \
+    timpi_assert_msg((comm_obj).verify(std::to_string(__LINE__)),       \
+                     "TIMPI method out of sync at " __FILE__ " line "   \
+                     timpi_stringize(__LINE__));                        \
+  } while (0)
 #else
 #define timpi_parallel_only(comm_obj)  ((void) 0)
 #endif
