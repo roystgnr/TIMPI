@@ -474,6 +474,93 @@ public:
 };
 
 
+#ifndef DEFINED_CONTAINER_ARRAY
+#define DEFINED_CONTAINER_ARRAY
+  template<typename T, std::size_t N>
+  class container_array : public std::array<T, N> {};
+#endif
+
+
+template<typename T, std::size_t N>
+class StandardType<container_array<T, N>,
+                   typename std::enable_if<
+                     StandardType<T>::is_fixed_type>::type> : public DataType
+{
+public:
+  explicit
+  StandardType(const container_array<T, N> * example = nullptr)
+    : DataType()
+  {
+#ifdef TIMPI_HAVE_MPI
+    static data_type static_type = MPI_DATATYPE_NULL;
+    if (static_type == MPI_DATATYPE_NULL)
+      {
+        // We need an example for MPI_Address to use
+        container_array<T, N> * ex;
+        std::unique_ptr<container_array<T, N>> temp;
+        if (example)
+          ex = const_cast<container_array<T, N> *>(example);
+        else
+          {
+            temp.reset(new container_array<T, N>());
+            ex = temp.get();
+          }
+
+        static_assert(N > 0, "Zero-length std::array is not supported by TIMPI");
+        StandardType<T> T_type(&((*ex)[0]));
+
+        int blocklength = N;
+        MPI_Aint displs, start;
+        MPI_Datatype tmptype, type = T_type;
+
+        timpi_call_mpi
+          (MPI_Get_address (ex, &start));
+        timpi_call_mpi
+          (MPI_Get_address (&((*ex)[0]), &displs));
+
+        // subtract off offset to first value from the beginning of the structure
+        displs -= start;
+
+        // create a prototype structure
+        timpi_call_mpi
+          (MPI_Type_create_struct (1, &blocklength, &displs, &type,
+                                   &tmptype));
+        timpi_call_mpi
+          (MPI_Type_commit (&tmptype));
+
+        // resize the structure type to account for padding, if any
+        timpi_call_mpi
+          (MPI_Type_create_resized (tmptype, 0, sizeof(container_array<T,N>),
+                                    &static_type));
+
+        timpi_call_mpi
+          (MPI_Type_free (&tmptype));
+
+        SemiPermanent::add
+          (std::make_unique<ManageType>(static_type));
+      }
+    _datatype = static_type;
+#else // #ifdef TIMPI_HAVE_MPI
+    timpi_ignore(example);
+#endif
+  }
+
+  StandardType(const StandardType<container_array<T, N>> & t)
+    : DataType()
+  {
+    _datatype = t._datatype;
+  }
+
+  StandardType & operator=(StandardType & t)
+  {
+    _datatype = t._datatype;
+    return *this;
+  }
+
+  static const bool is_fixed_type = true;
+};
+
+
 // Helper functions for creating type/displacement arrays for tuples
 //
 // These are classes since we can't partially specialize functions

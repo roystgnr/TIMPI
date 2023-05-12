@@ -339,9 +339,99 @@ timpi_mpi_pair_##funcname(void * a, void * b, int * len, MPI_Datatype *) \
     TIMPI_MPI_OPFUNCTION(max_location, pair_max_location)
     TIMPI_MPI_OPFUNCTION(min_location, pair_min_location)
   };
+
+
+# define TIMPI_MPI_ARRAY_BINARY(funcname) \
+static inline void \
+timpi_mpi_array_##funcname(void * a, void * b, int * len, MPI_Datatype *) \
+{ \
+  const int size = *len; \
+ \
+  const container_array<T,N> * in = static_cast<container_array<T,N> *>(a); \
+  container_array<T,N> * inout = static_cast<container_array<T,N> *>(b); \
+  for (int i=0; i != size; ++i) \
+    { \
+      for (int j=0; j != N; ++j) \
+        { \
+          inout[i][j] = std::funcname(in[i][j], inout[i][j]); \
+          inout[i][j] = std::funcname(in[i][j], inout[i][j]); \
+        } \
+    } \
+}
+
+# define TIMPI_MPI_ARRAY_LOCATOR(funcname) \
+static inline void \
+timpi_mpi_array_##funcname##_location(void * a, void * b, int * len, MPI_Datatype *) \
+{ \
+  const int size = *len; \
+ \
+  typedef std::pair<container_array<T,N>, int> dtype; \
+ \
+  dtype *in = static_cast<dtype*>(a); \
+  dtype *inout = static_cast<dtype*>(b); \
+  for (int i=0; i != size; ++i) \
+    { \
+      container_array<T,N> old_inout = inout[i].first; \
+      for (int j=0; j != N; ++j) \
+        { \
+          inout[i].first.first  = std::funcname(in[i].first.first, inout[i].first.first); \
+          inout[i].first.second = std::funcname(in[i].first.second,inout[i].first.second); \
+        } \
+      if (old_inout != inout[i].first) \
+        inout[i].second = in[i].second; \
+    } \
+}
+
+
+# define TIMPI_MPI_ARRAY_BINARY_FUNCTOR(funcname) \
+static inline void \
+timpi_mpi_array_##funcname(void * a, void * b, int * len, MPI_Datatype *) \
+{ \
+  const int size = *len; \
+ \
+  const container_array<T,N> * in = static_cast<container_array<T,N> *>(a); \
+  container_array<T,N> * inout = static_cast<container_array<T,N> *>(b); \
+  for (int i=0; i != size; ++i) \
+    { \
+      inout[i].first  = std::funcname<T>()(in[i].first, inout[i].first); \
+      inout[i].second = std::funcname<T>()(in[i].second,inout[i].second); \
+    } \
+}
+
+
+#ifndef DEFINED_CONTAINER_ARRAY
+#define DEFINED_CONTAINER_ARRAY
+  template<typename T, std::size_t N>
+  class container_array : public std::array<T, N> {};
+#endif
+
+
+  template<typename T, std::size_t N>
+  class OpFunction<container_array<T, N>>
+  {
+    TIMPI_MPI_ARRAY_BINARY(max)
+    TIMPI_MPI_ARRAY_BINARY(min)
+    TIMPI_MPI_ARRAY_LOCATOR(max)
+    TIMPI_MPI_ARRAY_LOCATOR(min)
+    TIMPI_MPI_ARRAY_BINARY_FUNCTOR(plus)
+    TIMPI_MPI_ARRAY_BINARY_FUNCTOR(multiplies)
+
+  public:
+    TIMPI_MPI_OPFUNCTION(max, array_max)
+    TIMPI_MPI_OPFUNCTION(min, array_min)
+    TIMPI_MPI_OPFUNCTION(sum, array_plus)
+    TIMPI_MPI_OPFUNCTION(product, array_multiplies)
+
+    TIMPI_MPI_OPFUNCTION(max_location, array_max_location)
+    TIMPI_MPI_OPFUNCTION(min_location, array_min_location)
+  };
+
 # else // TIMPI_HAVE_MPI
   template<typename T, typename U>
   class OpFunction<std::pair<T,U>> {};
+
+  template<typename T, std::size_t N>
+  class OpFunction<container_array<T, N>> {};
 #endif
 
 } // namespace TIMPI
