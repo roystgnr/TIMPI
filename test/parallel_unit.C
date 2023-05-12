@@ -547,6 +547,23 @@ void testGather()
 
 
 
+  void testMinContainerArray ()
+  {
+    const int rank = TestCommWorld->rank();
+
+    container_array<int, 5> a {6, 6, 6, 6, 6};
+    if (rank < 5)
+      a[rank] = rank;
+
+    TestCommWorld->min(a);
+
+    for (std::size_t i=0; i != std::min(5, rank); ++i)
+      {
+        TIMPI_UNIT_ASSERT (a[i] == i);
+      }
+  }
+
+
 
   void testMPIULongMin()
   {
@@ -631,6 +648,25 @@ void testGather()
         TIMPI_UNIT_ASSERT (vec_bool[i] == should_be_true);
       }
   }
+
+
+
+  void testMaxContainerArray ()
+  {
+    const int rank = TestCommWorld->rank();
+
+    container_array<int, 5> a {0, 0, 0, 0, 0};
+    if (rank < 5)
+      a[rank] = rank;
+
+    TestCommWorld->max(a);
+
+    for (std::size_t i=0; i != std::min(5, rank); ++i)
+      {
+        TIMPI_UNIT_ASSERT (a[i] == i);
+      }
+  }
+
 
 
 
@@ -1148,8 +1184,10 @@ int main(int argc, const char * const * argv)
   testBarrier();
   testMin();
   testMinVecBool();
+  testMinContainerArray();
   testMax();
   testMaxVecBool();
+  testMaxContainerArray();
   testMPIULongMin();
   testMinLarge<char>();
   testMinLarge<unsigned char>();
